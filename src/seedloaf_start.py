@@ -210,8 +210,9 @@ def do_start(sb, server_id, email, password):
         raise RuntimeError("Botones ambiguos. No se hace clic.")
 
     start.click()
+    print("Start pulsado. Comprobando estado del panel hasta 120 segundos.", flush=True)
     try:
-        WebDriverWait(driver, 35).until(
+        WebDriverWait(driver, 120).until(
             lambda d: classify_buttons(d.find_elements(
                 By.CSS_SELECTOR, "button"))[0] == "already_running")
     except TimeoutException as exc:
