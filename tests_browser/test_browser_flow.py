@@ -22,7 +22,7 @@ class TestSyntheticChromeFlow(unittest.TestCase):
         html = """
         <!doctype html><html><head><title>Fake Minecraft panel</title></head><body>
         <button id="restart">Restart</button>
-                "<button id='start' onclick='this.textContent=&quot;Stop&quot;'>Start</button>"
+        <button id="power" onclick="
           window.startClicks = (window.startClicks || 0) + 1;
           this.disabled = true;
           const b = this;
@@ -72,7 +72,7 @@ class TestSyntheticChromeFlow(unittest.TestCase):
         from seleniumbase import SB
         from urllib.parse import quote
         page = ("<html><head><title>Safe CDP smoke</title></head><body>"
-                "<button id='start' onclick=\\"this.textContent='Stop'\\">Start</button>"
+                "<button id='start' onclick='this.textContent=&quot;Stop&quot;'>Start</button>"
                 "</body></html>")
         # Use same public version as production with a local data URL.
         with SB(uc=True, xvfb=True) as sb:
