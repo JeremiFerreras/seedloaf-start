@@ -68,17 +68,25 @@ def is_challenge(title, body):
 
 
 def is_target(url, server_id):
-    u = urlparse(url)
+    try:
+        u = urlparse(url)
+        port = u.port
+    except (ValueError, TypeError):
+        return False
     return (u.scheme == "https" and u.hostname == "seedloaf.com"
-            and u.port in (None, 443)
+            and port in (None, 443)
             and u.path.rstrip("/") == f"/dashboard/{server_id}/console")
 
 
 def authenticated_dashboard(url):
     """Un redirect al inicio de seedloaf.com NO demuestra autenticacion."""
-    u = urlparse(url)
+    try:
+        u = urlparse(url)
+        port = u.port
+    except (ValueError, TypeError):
+        return False
     return (u.scheme == "https" and u.hostname == "seedloaf.com"
-            and u.port in (None, 443)
+            and port in (None, 443)
             and (u.path.rstrip("/") == "/dashboard"
                  or u.path.startswith("/dashboard/")))
 
@@ -109,7 +117,7 @@ def confirmation_from_state(state):
 
 def retry_challenge_allowed(is_challenge_page, retries_used):
     """Una recuperacion adicional y solo si hay una verificacion, nunca por error de clave."""
-    return bool(is_challenge_page and retries_used < 1)
+    return bool(is_challenge_page and retries_used == 0)
 
 
 def diagnostic(driver, stage):
@@ -291,6 +299,7 @@ def do_start(sb, server_id, email, password):
 def main():
     server_id = (os.getenv("SEEDLOAF_SERVER_ID") or "").strip()
     console_url(server_id)
+    server_id = str(uuid.UUID(server_id))
     email = (os.getenv("USERNAME") or "").strip()
     password = os.getenv("PASSWORD") or ""
     if not email or not password:
