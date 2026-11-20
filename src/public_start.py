@@ -202,9 +202,18 @@ def main():
         )
     if result == "ready":
         return 0
-    # A successful UI submission alone is not success. Callers can probe the
-    # Minecraft protocol independently; no second Start request is attempted.
-    print("PUBLIC_START_NO_CONFIRMADO: consulta disponibilidad Minecraft.", flush=True)
+    # A successful UI submission alone is not success. A single Start request
+    # can take time: only read Minecraft status afterward, no second submission.
+    from entrypoint import postflight
+    address = (os.environ.get("MINECRAFT_ADDRESS") or "").strip()
+    if address:
+        status = postflight(address, attempts=10)
+        print("PUBLIC_POSTFLIGHT estado=" + status, flush=True)
+        if status == "responding":
+            print("PUBLIC_CONFIRMED: servidor Minecraft responde.", flush=True)
+            return 0
+    print("PUBLIC_START_NO_CONFIRMADO: solicitud enviada, sin respuesta Minecraft.",
+          flush=True)
     return 2
 
 
