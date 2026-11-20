@@ -197,6 +197,11 @@ def do_start(sb, server_id, email, password):
                            "en el panel correcto.") from exc
 
     state, start = classify_buttons(driver.find_elements(By.CSS_SELECTOR, "button"))
+    if (os.getenv("CHECK_ONLY") or "").strip().lower() == "true":
+        print("CONSULTA_SOLO_LECTURA estado=" + state, flush=True)
+        if state in ("already_running", "can_start"):
+            return 0
+        raise RuntimeError("El estado del servidor no pudo determinarse de forma segura.")
     if state == "already_running":
         print("El servidor ya estaba encendido. No se ejecuta otra accion.",
               flush=True)
