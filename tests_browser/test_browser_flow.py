@@ -22,7 +22,7 @@ class TestSyntheticChromeFlow(unittest.TestCase):
         html = """
         <!doctype html><html><head><title>Fake Minecraft panel</title></head><body>
         <button id="restart">Restart</button>
-        <button id="power" onclick="
+                "<button id='start' onclick='this.textContent=&quot;Stop&quot;'>Start</button>"
           window.startClicks = (window.startClicks || 0) + 1;
           this.disabled = true;
           const b = this;
