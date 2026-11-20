@@ -418,5 +418,55 @@ class TestHttpTransport(unittest.TestCase):
                 request_json("GET", STATUS, TOKEN, ID)
 
 
+class TestOptionalMinecraftPreflight(unittest.TestCase):
+    def test_verified_minecraft_skips_browser(self):
+        env = {"START_BACKEND": "browser", "MINECRAFT_ADDRESS": "foo.seedloaf.gg"}
+        with patch.dict(os.environ, env):
+            with patch("mc_probe.minecraft_status", return_value={"responding": True}) as mc:
+                with patch("seedloaf_start.main") as browser:
+                    self.assertEqual(entrypoint_main(), 0)
+                    browser.assert_not_called()
+                    mc.assert_called_once_with("foo.seedloaf.gg", timeout=3)
+
+    def test_offline_or_unreachable_falls_back_to_browser(self):
+        env = {"START_BACKEND": "browser", "MINECRAFT_ADDRESS": "foo.seedloaf.gg"}
+        with patch.dict(os.environ, env):
+            with patch("mc_probe.minecraft_status", return_value=None):
+                with patch("seedloaf_start.main", return_value=0) as browser:
+                    self.assertEqual(entrypoint_main(), 0)
+                    browser.assert_called_once_with()
+
+    def test_no_host_does_not_probe(self):
+        with patch.dict(os.environ, {"START_BACKEND": "browser", "MINECRAFT_ADDRESS": ""}):
+            with patch("mc_probe.minecraft_status") as mc:
+                with patch("seedloaf_start.main", return_value=0) as browser:
+                    self.assertEqual(entrypoint_main(), 0)
+                    mc.assert_not_called()
+                    browser.assert_called_once_with()
+
+    def test_empty_fake_status_does_not_skip_backend(self):
+        with patch.dict(os.environ, {"START_BACKEND": "browser", "MINECRAFT_ADDRESS": "foo.seedloaf.gg"}):
+            with patch("mc_probe.minecraft_status", return_value={"responding": False}):
+                with patch("seedloaf_start.main", return_value=0) as browser:
+                    self.assertEqual(entrypoint_main(), 0)
+                    browser.assert_called_once_with()
+
+    def test_invalid_hostname_rejected_before_browser(self):
+        from mc_probe import ProbeError
+        with patch.dict(os.environ, {"START_BACKEND": "browser", "MINECRAFT_ADDRESS": "127.0.0.1"}):
+            with patch("seedloaf_start.main") as browser:
+                with self.assertRaises(ProbeError):
+                    entrypoint_main()
+                browser.assert_not_called()
+
+    def test_provider_running_skips_official_api_call(self):
+        env = {"START_BACKEND": "official_api", "MINECRAFT_ADDRESS": "foo.seedloaf.gg"}
+        with patch.dict(os.environ, env):
+            with patch("mc_probe.minecraft_status", return_value={"responding": True}):
+                with patch("official_start.main") as provider:
+                    self.assertEqual(entrypoint_main(), 0)
+                    provider.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()
