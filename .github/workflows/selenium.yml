@@ -2,10 +2,6 @@ name: Encender Seedloaf
 
 # Este workflow solo se ejecuta bajo peticion explicita.
 on:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/selenium.yml"
   workflow_dispatch:
     inputs:
       check_only:
@@ -46,7 +42,6 @@ jobs:
           python-version: '3.11'
 
       - name: Ejecutar pruebas
-        if: ${{ github.event_name != 'push' }}
         run: python -m unittest discover -s tests -v
 
       - name: Preparar DNS SRV de Minecraft
@@ -65,7 +60,7 @@ jobs:
       - name: Verificar configuracion sin imprimir secretos
         if: ${{ steps.preflight.outputs.online != 'true' }}
         env:
-          START_BACKEND: browser_cdp
+          START_BACKEND: ${{ inputs.backend || 'browser' }}
           USERNAME: ${{ secrets.USERNAME }}
           PASSWORD: ${{ secrets.PASSWORD }}
           SEEDLOAF_SERVER_ID: ${{ secrets.SEEDLOAF_SERVER_ID }}
@@ -89,7 +84,7 @@ jobs:
       - name: Encender mediante el backend elegido
         if: ${{ steps.preflight.outputs.online != 'true' }}
         env:
-          START_BACKEND: browser_cdp
+          START_BACKEND: ${{ inputs.backend || 'browser' }}
           USERNAME: ${{ secrets.USERNAME }}
           PASSWORD: ${{ secrets.PASSWORD }}
           SEEDLOAF_SERVER_ID: ${{ secrets.SEEDLOAF_SERVER_ID }}
