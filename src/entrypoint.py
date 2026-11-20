@@ -18,6 +18,28 @@ def preflight():
     return False
 
 
+def postflight(address, *, probe=None, pause=None, attempts=5):
+    """After Start, check whether Minecraft Java eventually answers.
+
+    No further Start clicks, even if every network attempt fails.
+    This does NOT claim the world is joinable if the host uses a proxy.
+    """
+    if not address:
+        return "not_configured"
+    from mc_probe import minecraft_status, parse_mc_address
+    from time import sleep
+    parse_mc_address(address)
+    probe = probe or minecraft_status
+    pause = pause or sleep
+    for i in range(max(0, min(attempts, 10))):
+        if i:
+            pause(7)
+        reply = probe(address, timeout=3)
+        if reply and reply.get("responding") is True:
+            return "responding"
+    return "not_confirmed"
+
+
 def main():
     provider = (os.environ.get("START_BACKEND") or "browser").strip().lower()
     if provider not in ("official_api", "browser"):
@@ -28,9 +50,18 @@ def main():
         return 0
     if provider == "official_api":
         from official_start import main as official_main
-        return official_main()
-    from seedloaf_start import main as browser_main
-    return browser_main()
+        result = official_main()
+    else:
+        from seedloaf_start import main as browser_main
+        result = browser_main()
+    # A completed browser/API request is NOT automatically Minecraft readiness.
+    # Probe only after requested starts, not on read-only checks.
+    if result == 0 and (os.environ.get("CHECK_ONLY") or "").lower() != "true":
+        address = (os.environ.get("MINECRAFT_ADDRESS") or "").strip()
+        if address:
+            verdict = postflight(address)
+            print("POSTFLIGHT_MINECRAFT estado=" + verdict, flush=True)
+    return result
 
 
 if __name__ == "__main__":
