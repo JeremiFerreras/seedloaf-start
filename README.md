@@ -125,3 +125,34 @@ El flujo GitHub Actions continua **manual** y CI no accede a secretos ni inicia 
 Fuentes:
 - https://seedloaf.com/minecraft-server/2-players
 - https://seedloaf.com/documentation/es/add-users
+
+
+## Version 2.1 — Inicio mas rapido y pruebas de resistencia
+
+**MINECRAFT_ADDRESS** ya acepta:
+- nombre.seedloaf.gg (con puerto opcional, p. ej. nombre.seedloaf.gg:51229);
+- una direccion IPv4 **publica** con puerto opcional, si Seedloaf te asigna una IP numerica.
+
+No acepta IP privadas, localhost, multicast, URLs ni dominios de terceros. Esto evita que el workflow consulte por error dispositivos internos.
+
+### Secuencia de encendido
+
+1. GitHub hace **dos consultas de estado Minecraft Java** con una breve separacion. Si ambas responden, el servidor ya atiende el protocolo y se **omite incluso instalar SeleniumBase**, asi que no visita Cloudflare.
+2. Cuando el servidor no responde, prepara el backend seleccionado. En el backend browser sigue el inicio habitual con los tres secretos.
+3. Si pulsa Start, **solo lo hace una vez** y espera confirmacion del panel. Si la red cae tras el clic, no reintenta esa accion.
+4. Tras un inicio confirmado por el backend y teniendo MINECRAFT_ADDRESS configurada, hace hasta **5 consultas de estado Java**, separadas por 7 segundos, para distinguir un mundo aun cargando de uno que ya responde. El resultado se registra en `POSTFLIGHT_MINECRAFT`. Una respuesta negativa no vuelve a pulsar Start.
+5. La existencia de un proxy que responde al ping de Minecraft puede producir un falso positivo: los mensajes de estado Java **no demuestran** que el servidor este listo para entrar ni que todos los mods hayan cargado. Para confirmarlo se requiere una conexion real.
+
+### Cloudflare
+
+Esta version reduce los accesos innecesarios al formulario cuando Minecraft ya responde, **no** altera ni evita las protecciones de Cloudflare cuando Seedloaf esta apagado. Cloudflare no garantiza desafios de produccion para navegadores automatizados: el resultado continua sujeto a su configuracion.
+
+El modo `official_api` permanece como adaptador **experimental sin API de Seedloaf confirmada**; no puede considerarse un encendido funcional alternativo. Para depender de ese modo seria necesario documentacion y credenciales oficiales del proveedor.
+
+### Pruebas
+
+- Pruebas de deteccion de direccion publica y rechazo de rangos privados/multicast.
+- Inyeccion de respuestas tardias, intermitentes, caidas de red, errores de formato, estados desconocidos y falsos encendidos.
+- Pruebas de que no se duplica Start tras un timeout y de que el workflow omite la instalacion del navegador cuando el servidor ya responde.
+- Tests unitarios y pruebas de Chrome con HTML simulado en GitHub Actions. **Las pruebas de estres no representan miles de encendidos reales de Seedloaf.**
+
