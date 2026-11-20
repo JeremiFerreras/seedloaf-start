@@ -113,6 +113,44 @@ def limited_challenge(cdp):
                   type(exc).__name__, flush=True)
 
 
+
+def safe_login_diagnostic(cdp, stage):
+    """Only classified booleans. Never log page text or session details."""
+    from urllib.parse import urlparse
+    try:
+        host = urlparse(cdp.get_current_url()).hostname
+        domain = (host if host in ("seedloaf.com", "accounts.seedloaf.com")
+                  else "other")
+        title = norm(cdp.get_title())
+        body = norm(cdp.get_text("body")[:1800])
+        content = title + " " + body
+        challenge = is_challenge(title, body)
+        invalid = any(t in content for t in (
+            "invalid credentials", "incorrect password", "invalid password",
+            "wrong password", "incorrect credentials", "contrasena incorrecta"
+        ))
+        mfa = any(t in content for t in (
+            "two-factor", "two factor", "authenticator",
+            "verification code", "codigo de verificacion", "2fa"
+        ))
+        verify_email = any(t in content for t in (
+            "verify your email", "check your email", "verifica tu correo"
+        ))
+        password_visible = cdp.is_element_visible(PASSWORD)
+        print(
+            "CDP_DIAGNOSTICO etapa=" + stage + " dominio=" + domain +
+            " challenge=" + str(int(challenge)) +
+            " invalid_credentials=" + str(int(invalid)) +
+            " two_factor=" + str(int(mfa)) +
+            " verify_email=" + str(int(verify_email)) +
+            " password_field=" + str(int(password_visible)),
+            flush=True,
+        )
+    except Exception as exc:
+        print("CDP_DIAGNOSTICO etapa=" + stage +
+              " inspector_error=" + type(exc).__name__, flush=True)
+
+
 def run_browser(cdp, server_id, email, password, *, check_only=False):
     """Use CDP exclusively; never reconnect Chromedriver during the flow."""
     if not authenticated_dashboard("https://seedloaf.com/dashboard"):
@@ -132,11 +170,13 @@ def run_browser(cdp, server_id, email, password, *, check_only=False):
     cdp.type(USERNAME, email)
     cdp.press_keys(USERNAME, "\n")
     if not wait_until(lambda: cdp.is_element_visible(PASSWORD), 30):
+        safe_login_diagnostic(cdp, "password_field_timeout")
         raise RuntimeError("No aparecio el campo de contrasena.")
     cdp.type(PASSWORD, password)
     cdp.press_keys(PASSWORD, "\n")
 
     if not wait_until(lambda: authenticated_dashboard(cdp.get_current_url()), 50):
+        safe_login_diagnostic(cdp, "after_password_timeout")
         raise RuntimeError("No se completo la autenticacion por CDP.")
 
     print("CDP_DIAGNOSTICO etapa=authenticated", flush=True)
