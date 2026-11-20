@@ -137,5 +137,54 @@ class TestCDPFlow(unittest.TestCase):
         self.assertEqual(cdp.goto_calls, [])
 
 
+class TestCDPSafeDiagnostic(unittest.TestCase):
+    def test_does_not_log_user_credentials_or_raw_page(self):
+        import io
+        from contextlib import redirect_stdout
+        from seedloaf_cdp import safe_login_diagnostic
+
+        class C:
+            def get_current_url(self):
+                return "https://accounts.seedloaf.com/sign-in?secret=12345"
+            def get_title(self):
+                return "Invalid credentials"
+            def get_text(self, selector):
+                return "test@example.test password=super-secret-do-not-print"
+            def is_element_visible(self, selector):
+                return True
+
+        output = io.StringIO()
+        with redirect_stdout(output):
+            safe_login_diagnostic(C(), "test")
+        message = output.getvalue()
+        self.assertIn("invalid_credentials=1", message)
+        self.assertIn("dominio=accounts.seedloaf.com", message)
+        self.assertNotIn("test@example.test", message)
+        self.assertNotIn("super-secret", message)
+        self.assertNotIn("secret=12345", message)
+
+    def test_detects_additional_verification_without_leaking_body(self):
+        import io
+        from contextlib import redirect_stdout
+        from seedloaf_cdp import safe_login_diagnostic
+
+        class C:
+            def get_current_url(self):
+                return "https://accounts.seedloaf.com/sign-in"
+            def get_title(self):
+                return "Verify your email"
+            def get_text(self, selector):
+                return "Verification code sent"
+            def is_element_visible(self, selector):
+                return False
+
+        output = io.StringIO()
+        with redirect_stdout(output):
+            safe_login_diagnostic(C(), "post_login")
+        self.assertIn("verify_email=1", output.getvalue())
+        self.assertIn("two_factor=1", output.getvalue())
+        self.assertNotIn("Verification code sent", output.getvalue())
+
+
 if __name__ == "__main__":
     unittest.main()
