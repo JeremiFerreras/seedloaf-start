@@ -12,8 +12,16 @@ def diagnose(address, *, srv_lookup=lookup_mc_srv, probe=minecraft_status):
     host, port = parse_mc_address(address)
     direct = probe(address, timeout=3)
     result = {"configured": "responding" if direct else "no_response",
-              "srv_record": "not_checked", "srv_probe": "not_checked"}
+              "srv_record": "not_checked", "srv_probe": "not_checked",
+              "default_port_probe": "not_checked"}
     if host.endswith(".seedloaf.gg"):
+        # Test the same address the user can type without a port in Minecraft.
+        # A provider proxy may answer :25565 even if a dashboard shows another port.
+        if port != 25565:
+            default_reply = probe(host, timeout=3)
+            result["default_port_probe"] = (
+                "responding" if default_reply else "no_response"
+            )
         record = srv_lookup(host)
         result["srv_record"] = "found" if record is not None else "absent_or_unavailable"
         if record is not None and (host, port) != record:
