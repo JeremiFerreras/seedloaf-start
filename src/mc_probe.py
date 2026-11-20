@@ -99,7 +99,7 @@ def minecraft_status(address, timeout=3, connect=socket.create_connection,
     h = host.encode("ascii")
     handshake = (
         varint(0) + varint(0) + varint(len(h)) + h +
-        port.to_bytes(2, "big") + varint(1)
+        destination[1].to_bytes(2, "big") + varint(1)
     )
     try:
         with connect(destination, timeout=timeout) as sock:
