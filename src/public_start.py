@@ -170,8 +170,15 @@ def run_public(cdp, subdomain, *, check_only=False, timeout=45):
         raise RuntimeError("No se abrio la ruta HTTPS Public Start.")
     if challenge_detected(cdp):
         print("PUBLIC_DIAG estado=challenge_interactive", flush=True)
-        # User indicated a Cloudflare checkbox. The site may require a
-        # human to complete it. Do not fake completion or submit blindly.
+        # SeleniumBase documents one CDP Turnstile checkbox interaction.
+        # This may fail and does not grant permission to bypass site policy.
+        # Never loop, reload the challenge, or claim validation prematurely.
+        try:
+            cdp.solve_captcha()
+            print("PUBLIC_DIAG verification_attempt=1", flush=True)
+        except Exception as exc:
+            print("PUBLIC_DIAG verification_error=" + type(exc).__name__,
+                  flush=True)
     found = {"value": None}
     def scan():
         if not is_expected_public_page(cdp.get_current_url()):
