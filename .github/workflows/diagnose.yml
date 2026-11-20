@@ -1,0 +1,25 @@
+name: Diagnostico Minecraft (sin Seedloaf web)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Preparar DNS SRV
+        run: python -m pip install --disable-pip-version-check dnspython==2.8.0
+      - name: Inspeccionar DNS SRV y conectividad Java sin revelar direccion
+        env:
+          MINECRAFT_ADDRESS: ${{ secrets.MINECRAFT_ADDRESS }}
+        run: python src/diagnose_mc.py
