@@ -54,3 +54,30 @@ Estas pruebas no garantizan acceso a Seedloaf: todavía hay que verificar el log
 - [Comprobación de estado de solo lectura exitosa](https://github.com/JeremiFerreras/seedloaf-start/actions/runs/44661848389): `CONSULTA_SOLO_LECTURA estado=already_running`. **No se pulsó Start en esta ejecución**.
 - Varias ejecuciones siguen fallando en la verificación inicial de Cloudflare; el éxito no es garantizado. El aumento de espera a 120 s aún no tiene validación en un encendido nuevo desde apagado.
 - Esta integración no implementa aún el enlace público de WhatsApp: esa fase requiere un disparador autorizado que no exponga tokens.
+
+## Fiabilidad y pruebas automatizadas
+
+- **79 pruebas unitarias**, incluyendo **13.296 situaciones sintéticas deterministas** de botones, redirecciones y estados (el conteo de casos no equivale a 13.296 inicios reales).
+- **Dos pruebas de navegador reales contra HTML simulado:** un único clic Start seguido de transición retardada a Stop, y rechazo de una URL que no corresponde al servidor.
+- La acción es **idempotente**: si aparece únicamente Stop, no vuelve a pulsar Start. Si hay botones contradictorios, elementos inestables o no se reconoce el control, falla sin hacer clic.
+- Tras pulsar Start, espera hasta **120 segundos** para ver Stop en la consola exacta. Si no aparece, devuelve error de **resultado no confirmado**, pero no repite el clic (la solicitud original podría seguir procesándose).
+- Cloudflare puede presentar un desafío antes del formulario. Se permite solo **una recuperación adicional** si sigue activo, sin intentos ilimitados ni reenvío de credenciales.
+- El éxito indicado por Stop confirma **el estado representado por el panel**, no que el servidor de Minecraft ya responda a jugadores. Se necesita una comprobación adicional de conectividad para afirmar eso.
+- No hay promesa de encendido en cada intento: las verificaciones externas y cambios de interfaz de Seedloaf están fuera del control de GitHub Actions.
+
+### Cómo comprobarlo sin encender nada
+
+1. Ve a **Actions → Encender Seedloaf → Run workflow**.
+2. Marca `check_only` para revisar el panel en modo solo lectura.
+3. Revisa el mensaje `CONSULTA_SOLO_LECTURA`. Si el estado es `already_running`, el panel indica encendido; si es `can_start`, indica apagado.
+4. Para encender, ejecuta de nuevo dejando `check_only` **desmarcado**. Nunca ejecutes manualmente dos inicios mientras uno siga pendiente.
+
+### Interpretación de resultados
+
+| Mensaje | Significado |
+| --- | --- |
+| `START_PANEL_CONFIRMADO` | La consola mostró Stop en el servidor previsto |
+| `START_SOLICITADO` sin confirmación | Se pulsó Start una vez; resultado indeterminado |
+| `CONSULTA_SOLO_LECTURA` | Se leyó el estado sin pulsar Start |
+| `DIAGNOSTICO ... challenge=1` | Verificación web bloquea o retrasa el acceso |
+| `Estado no seguro` | Controles contradictorios, página incorrecta o elemento inestable |
