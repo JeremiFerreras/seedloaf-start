@@ -43,10 +43,18 @@ jobs:
       - name: Ejecutar pruebas
         run: python -m unittest discover -s tests -v
 
-      - name: Instalar SeleniumBase UC
+      - name: Comprobar Minecraft antes del navegador
+        id: preflight
+        env:
+          MINECRAFT_ADDRESS: ${{ secrets.MINECRAFT_ADDRESS }}
+        run: python src/fastcheck.py
+
+      - name: Instalar SeleniumBase UC (solo si hace falta)
+        if: ${{ steps.preflight.outputs.online != 'true' && inputs.backend == 'browser' }}
         run: python -m pip install -r requirements.txt
 
       - name: Verificar configuracion sin imprimir secretos
+        if: ${{ steps.preflight.outputs.online != 'true' }}
         env:
           START_BACKEND: ${{ inputs.backend }}
           USERNAME: ${{ secrets.USERNAME }}
@@ -70,6 +78,7 @@ jobs:
           fi
 
       - name: Encender mediante el backend elegido
+        if: ${{ steps.preflight.outputs.online != 'true' }}
         env:
           START_BACKEND: ${{ inputs.backend }}
           USERNAME: ${{ secrets.USERNAME }}
