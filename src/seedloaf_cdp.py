@@ -163,8 +163,7 @@ def run_browser(cdp, server_id, email, password, *, check_only=False):
         raise RuntimeError("La navegacion de acceso no llego al dominio previsto.")
     limited_challenge(cdp)
     if not wait_until(lambda: cdp.is_element_visible(USERNAME), 35):
-        print("CDP_DIAGNOSTICO etapa=identifier_timeout challenge_possible=1",
-              flush=True)
+        safe_login_diagnostic(cdp, "identifier_timeout")
         raise RuntimeError("No aparecio el formulario de Seedloaf.")
 
     cdp.type(USERNAME, email)
