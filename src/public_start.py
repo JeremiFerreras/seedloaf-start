@@ -52,10 +52,11 @@ def domain_value(raw):
         port = raw.rsplit(":", 1)[1]
         if not port.isdecimal() or not 1 <= int(port) <= 65535:
             raise ValueError("Puerto DOMAIN invalido.")
-    if host.endswith(".seedloaf.gg"):
-        host = host.removesuffix(".seedloaf.gg")
-    if not re.fullmatch(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?", host):
+    name = host.removesuffix(".seedloaf.gg")
+    if not re.fullmatch(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?", name):
         raise ValueError("DOMAIN no coincide con un subdominio Seedloaf.")
+    # The DOMAIN secret was explicitly entered as the Public Start field value.
+    # Preserve full hostname vs. short subdomain rather than guessing UI format.
     return host
 
 

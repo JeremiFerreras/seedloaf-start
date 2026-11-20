@@ -72,8 +72,8 @@ jobs:
           SEEDLOAF_OFFICIAL_START_URL: ${{ secrets.SEEDLOAF_OFFICIAL_START_URL }}
           SEEDLOAF_OFFICIAL_API_TOKEN: ${{ secrets.SEEDLOAF_OFFICIAL_API_TOKEN }}
         run: |
-          test -n "$SEEDLOAF_SERVER_ID" || { echo "::error::Falta SEEDLOAF_SERVER_ID"; exit 1; }
           if [ "$START_BACKEND" = "browser" ] || [ "$START_BACKEND" = "browser_cdp" ]; then
+            test -n "$SEEDLOAF_SERVER_ID" || { echo "::error::Falta SEEDLOAF_SERVER_ID"; exit 1; }
             test -n "$USERNAME" || { echo "::error::Falta USERNAME"; exit 1; }
             test -n "$PASSWORD" || { echo "::error::Falta PASSWORD"; exit 1; }
           elif [ "$START_BACKEND" = "public_start" ]; then

@@ -44,10 +44,10 @@ class FakeCDP:
 
 class TestDomain(unittest.TestCase):
     def test_hostname(self):
-        self.assertEqual(domain_value("serverdejfxdchess.seedloaf.gg"), "serverdejfxdchess")
+        self.assertEqual(domain_value("serverdejfxdchess.seedloaf.gg"), "serverdejfxdchess.seedloaf.gg")
 
     def test_hostname_with_port(self):
-        self.assertEqual(domain_value("serverdejfxdchess.seedloaf.gg:50690"), "serverdejfxdchess")
+        self.assertEqual(domain_value("serverdejfxdchess.seedloaf.gg:50690"), "serverdejfxdchess.seedloaf.gg")
 
     def test_bare_subdomain(self):
         self.assertEqual(domain_value("serverdejfxdchess"), "serverdejfxdchess")
