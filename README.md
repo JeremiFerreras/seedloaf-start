@@ -194,3 +194,31 @@ El modo `official_api` permanece como adaptador **experimental sin API de Seedlo
 - La propia documentacion de Cloudflare establece que los navegadores automatizados no estan soportados para resolver retos de produccion: https://developers.cloudflare.com/cloudflare-challenges/reference/supported-browsers/
 - La documentacion oficial de Seedloaf ofrece `Starter` y `Public Start` como mecanismos autorizados: https://seedloaf.com/documentation/es/add-users
 - **Pendiente**: una interfaz oficial de encendido independiente del navegador, o comprobar una ejecucion desde apagado que alcance Start y verifique el protocolo Minecraft. No considerar browser_cdp estable ni garantizar que no aparezcan retos.
+
+## Version 2.4 — Public Start sin cuenta privada (20 noviembre de 2026)
+
+**Backend opcional `public_start` disponible** en GitHub -> Actions -> **Encender Seedloaf** -> **Run workflow** -> selecciona `public_start`. El motor de navegador anterior (`browser`) sigue como valor predeterminado porque Public Start todavía no ha completado un arranque real en GitHub Actions.
+
+### Configuración
+
+- Se usa el `Repository Secret` **DOMAIN**. Introduce exactamente lo que escribirías en el campo de Public Start: un subdominio corto (ejemplo `miservidor`) o un host `miservidor.seedloaf.gg`. Si incluyes `:puerto`, el software elimina el puerto para el formulario. **No se imprime el DOMAIN**.
+- A diferencia del dashboard, este backend **no requiere USERNAME, PASSWORD ni SEEDLOAF_SERVER_ID**. El workflow conserva los secretos anteriores intactos para los otros backends.
+- `MINECRAFT_ADDRESS` sigue siendo útil: el preflight evita abrir la web si Minecraft ya responde y el postflight (hasta 10 comprobaciones) solo confirma arranque cuando recibe una respuesta real al protocolo Minecraft Java.
+- `check_only=true` solo comprueba que el formulario está disponible; nunca escribe DOMAIN ni solicita Start.
+
+### Comportamiento seguro
+
+- Abre `https://seedloaf.com/public-start`, exclusivamente por HTTPS.
+- Si encuentra un desafío Cloudflare, hace **como máximo una** interacción con el método documentado `cdp.solve_captcha()`. No automatiza miles de intentos ni repite recargas/clics si el desafío no se resuelve.
+- Exige un único campo de texto visible y un único control inequívoco Start; si hay campos o botones ambiguos, se detiene para evitar acciones incorrectas.
+- Antes de escribir DOMAIN y hacer clic, comprueba de nuevo el origen, los elementos y su identidad. Tras un clic no envía una segunda solicitud, aunque la respuesta sea lenta o incierta.
+- **Un envío del formulario no equivale a éxito.** Se informa éxito solo si un chequeo Minecraft Java confirma respuesta después de solicitar encendido. La verificación del protocolo tampoco garantiza que todos los mods estén listos para entrar.
+- No descarga cookies, no guarda sesiones en GitHub, no publica capturas ni registra contenido del formulario.
+
+### Prueba real, con resultado negativo
+
+- Ejecución: https://github.com/JeremiFerreras/seedloaf-start/actions/runs/44800476592
+- Resultado: `PUBLIC_DIAG estado=challenge_interactive`, seguido de `verification_attempt=1`. Después de esperar, `challenge=1 fields=1 controls=0` y error `Public Start no expuso un formulario utilizable`.
+- **No se pulsó Start.** Este resultado confirma que Public Start elimina el login pero no necesariamente el control de Cloudflare. No hay demostración de arranque en producción con este backend.
+- La página de Public Start respondió `403 Forbidden` desde la herramienta de consulta web. Los selectores reales de su formulario **no han podido confirmarse**, por eso se usa una selección conservadora que se aborta si cambia la interfaz.
+- Documentación oficial: https://seedloaf.com/documentation/es/add-users y https://seedloaf.com/public-start
