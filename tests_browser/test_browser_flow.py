@@ -124,5 +124,37 @@ class TestSyntheticChromeFlow(unittest.TestCase):
 
 
 
+    def test_public_start_real_cdp_form_single_submission(self):
+        """Offline HTML: field discovered, filled once, Start clicked once."""
+        from seleniumbase import SB
+        from urllib.parse import quote
+        from public_start import run_public
+        html = """
+        <html><head><title>Public Start test</title></head><body>
+          <input id="domain" type="text" placeholder="Domain" required>
+          <button onclick="document.body.setAttribute('data-starts',
+            String(1 + Number(document.body.getAttribute('data-starts') || 0)))">
+            Start
+          </button>
+        </body></html>
+        """
+        with SB(uc=True, xvfb=True) as sb:
+            sb.activate_cdp_mode("data:text/html," + quote(html))
+            cdp = sb.cdp
+            class LocalPublicPage:
+                def get_current_url(self): return "https://seedloaf.com/public-start"
+                def get_title(self): return cdp.get_title()
+                def get_text(self, selector): return cdp.get_text(selector)
+                def evaluate(self, script): return cdp.evaluate(script)
+                def type(self, selector, value): return cdp.type(selector, value)
+                def click(self, selector): return cdp.click(selector)
+            page = LocalPublicPage()
+            self.assertEqual(run_public(page, "testserver"), "submitted")
+            self.assertEqual(cdp.evaluate("document.querySelector('#domain').value"),
+                             "testserver")
+            self.assertEqual(cdp.evaluate("document.body.getAttribute('data-starts')"),
+                             "1")
+
+
 if __name__ == "__main__":
     unittest.main()
