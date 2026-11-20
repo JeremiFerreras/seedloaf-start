@@ -93,5 +93,36 @@ class TestSyntheticChromeFlow(unittest.TestCase):
 
 
 
+    def test_cdp_enter_submits_two_step_login_form_offline(self):
+        """Verify the CDP press_keys Enter semantics on a local-only form."""
+        from seleniumbase import SB
+        from urllib.parse import quote
+        html = """
+        <html><body>
+        <form onsubmit="event.preventDefault();
+           const p=document.getElementById('password-field');
+           if (p.hidden) {p.hidden=false;} else {
+             document.body.setAttribute('data-signed-in','yes');
+           }">
+          <input id="identifier-field" name="email">
+          <input id="password-field" name="password" type="password" hidden>
+          <button type="submit">Continue</button>
+        </form></body></html>
+        """
+        with SB(uc=True, xvfb=True) as sb:
+            sb.activate_cdp_mode("data:text/html," + quote(html))
+            cdp = sb.cdp
+            cdp.type("#identifier-field", "test@example.test")
+            cdp.press_keys("#identifier-field", "\n")
+            cdp.wait_for_element_visible("#password-field", timeout=10)
+            cdp.type("#password-field", "dummy")
+            cdp.press_keys("#password-field", "\n")
+            self.assertEqual(
+                cdp.evaluate("document.body.getAttribute('data-signed-in')"),
+                "yes"
+            )
+
+
+
 if __name__ == "__main__":
     unittest.main()
