@@ -50,7 +50,7 @@ class TestConnectionDiagnostics(unittest.TestCase):
         report = diagnose(ADDRESS,
             srv_lookup=lambda _: (HOST, 50690), probe=probe)
         self.assertEqual(report["srv_probe"], "not_checked")
-        self.assertEqual(len(calls), 1)
+        self.assertEqual(len(calls), 2)
 
 
     def test_bare_domain_port_25565_can_reply_even_if_custom_does_not(self):
