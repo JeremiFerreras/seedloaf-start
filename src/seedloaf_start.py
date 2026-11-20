@@ -167,7 +167,21 @@ def do_start(sb, server_id, email, password):
 
     diagnostic(driver, "authenticated")
     print("Abriendo consola del servidor configurado.", flush=True)
-    open_and_wait(sb, console_url(server_id))
+    # La sesion autenticada ya existe. Un segundo uc_open_with_reconnect
+    # desconecta ChromeDriver y puede provocar MaxRetryError al reconectar.
+    # Para navegar dentro de Seedloaf se conserva la conexion actual.
+    try:
+        driver.default_get(console_url(server_id))
+    except Exception as exc:
+        raise RuntimeError("No se pudo navegar a la consola con la sesion activa "
+                           "(" + type(exc).__name__ + ").") from None
+    if is_current_challenge(driver):
+        print("La consola solicita una segunda verificacion web.", flush=True)
+        try:
+            driver.uc_gui_handle_captcha()
+        except Exception as exc:
+            print("No se pudo resolver la segunda verificacion: " +
+                  type(exc).__name__, flush=True)
 
     def panel_ready(d):
         if not is_target(d.current_url, server_id):
