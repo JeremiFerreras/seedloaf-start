@@ -7,8 +7,8 @@ def preflight():
     address = (os.environ.get("MINECRAFT_ADDRESS") or "").strip()
     if not address:
         return False
-    from mc_probe import minecraft_status
-    status = minecraft_status(address, timeout=3)
+    from mc_probe import minecraft_status_auto
+    status = minecraft_status_auto(address, timeout=3)
     if status and status.get("responding") is True:
         print("MINECRAFT_RESPONDE: el servidor ya contesta status; "
               "se evita una autenticacion web innecesaria.", flush=True)
@@ -26,10 +26,10 @@ def postflight(address, *, probe=None, pause=None, attempts=5):
     """
     if not address:
         return "not_configured"
-    from mc_probe import minecraft_status, parse_mc_address
+    from mc_probe import minecraft_status_auto, parse_mc_address
     from time import sleep
     parse_mc_address(address)
-    probe = probe or minecraft_status
+    probe = probe or minecraft_status_auto
     pause = pause or sleep
     for i in range(max(0, min(attempts, 10))):
         if i:
