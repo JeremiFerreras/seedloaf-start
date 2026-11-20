@@ -81,3 +81,47 @@ Estas pruebas no garantizan acceso a Seedloaf: todavía hay que verificar el log
 | `CONSULTA_SOLO_LECTURA` | Se leyó el estado sin pulsar Start |
 | `DIAGNOSTICO ... challenge=1` | Verificación web bloquea o retrasa el acceso |
 | `Estado no seguro` | Controles contradictorios, página incorrecta o elemento inestable |
+
+
+## Version 2: reducir la dependencia de Cloudflare (noviembre 2026)
+
+**Situacion real:** el plan **premium** de Seedloaf ofrece despertar automaticamente el servidor al intentar conectarse desde Minecraft. En el plan **gratuito** se necesita iniciar el servidor desde el panel. No se encontro una API publica de encendido documentada; por tanto no podemos garantizar un encendido gratis que nunca dependa de Cloudflare.
+
+### Comprobacion opcional de Minecraft sin navegador
+
+Si quieres, crea el secreto **MINECRAFT_ADDRESS** con el subdominio Java de tu servidor, por ejemplo **mi-mundo.seedloaf.gg** o **mi-mundo.seedloaf.gg:25565**.
+
+- GitHub consulta primero el protocolo de estado de Minecraft. Si responde correctamente, omite el navegador: no necesita pasar por Cloudflare para constatar que el servidor responde.
+- Si no responde, sigue con el backend seleccionado. La ausencia de respuesta no demuestra que el servidor este apagado.
+- Solo se permiten subdominios **.seedloaf.gg**. La consulta no transmite contrasenas ni comandos.
+- Un proxy podria responder aunque el mundo no este listo para jugadores. Esta comprobacion es para protocolo **Minecraft Java**, no Bedrock.
+
+### Motor sin navegador para una futura API oficial
+
+En **Actions -> Encender Seedloaf -> Run workflow**, la opcion **backend** permite elegir:
+
+- **browser (predeterminado):** SeleniumBase con tus tres secretos actuales; puede seguir viendo Cloudflare.
+- **official_api (experimental y sin habilitar):** integracion HTTP preparada para el caso de que Seedloaf facilite endpoints y un token oficiales. **No existe actualmente una API publica verificada para activarla.**
+
+No introduzcas URLs extraidas de las herramientas de desarrollador de tu navegador ni reutilices cookies o tokens de sesion. El adaptador solo debe activarse despues de confirmar con Seedloaf un protocolo oficial y el permiso de automatizacion.
+
+Cuando Seedloaf proporcione un protocolo oficial compatible, los secretos previstos son **SEEDLOAF_OFFICIAL_STATUS_URL**, **SEEDLOAF_OFFICIAL_START_URL** y **SEEDLOAF_OFFICIAL_API_TOKEN**. Las URL deben estar en HTTPS bajo seedloaf.com o api.seedloaf.com. El formato JSON implementado es un **contrato propuesto y sin verificar** con un campo status: running / starting / stopped. Debe ajustarse a la documentacion oficial antes de usarlo de verdad.
+
+El motor:
+- Consulta el estado antes de cualquier inicio. Evita enviar Start si ya esta encendido o arrancando.
+- Reintenta solamente consultas GET, con limites. **Nunca repite automaticamente un POST Start**, ni cuando la red se corta despues de enviarlo.
+- Rechaza redirecciones, respuestas HTML, errores de permisos, URLs no autorizadas y estados desconocidos.
+- No vuelve silenciosamente a Selenium si falla la interfaz API.
+- No confunde HTTP 202 (orden aceptada) con servidor de Minecraft disponible.
+
+### Validacion y limite del resultado
+
+La bateria automatica actual ejecuto **150 pruebas unitarias**, incluyendo fallos provocados en respuestas HTTP (401, 403, 429, 503), datos corruptos, tiempos de espera y validacion de dominios; ademas **2 pruebas con Chrome real** sobre HTML simulado. Incluye mas de 18.000 combinaciones sinteticas reproducibles, **no 18.000 arranques reales**.
+
+Validacion: https://github.com/JeremiFerreras/seedloaf-start/actions/runs/44785963882
+
+El flujo GitHub Actions continua **manual** y CI no accede a secretos ni inicia Seedloaf. Ninguna prueba de esta version demostro que un mundo apagado en el plan gratuito pueda encenderse sin Cloudflare. Se necesita un mecanismo oficial del proveedor para poder afirmar eso.
+
+Fuentes:
+- https://seedloaf.com/minecraft-server/2-players
+- https://seedloaf.com/documentation/es/add-users
