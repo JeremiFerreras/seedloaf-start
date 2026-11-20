@@ -10,7 +10,7 @@ on:
         type: boolean
         default: false
       backend:
-        description: "browser actual o API oficial verificada (si Seedloaf la publica)"
+        description: "browser normal, browser_cdp experimental o API oficial futura"
         required: false
         type: choice
         default: browser
