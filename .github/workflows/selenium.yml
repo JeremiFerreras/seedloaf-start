@@ -9,6 +9,14 @@ on:
         required: false
         type: boolean
         default: false
+      backend:
+        description: "browser actual o API oficial verificada (si Seedloaf la publica)"
+        required: false
+        type: choice
+        default: browser
+        options:
+          - browser
+          - official_api
 
 permissions:
   contents: read
@@ -38,20 +46,36 @@ jobs:
       - name: Instalar SeleniumBase UC
         run: python -m pip install -r requirements.txt
 
-      - name: Verificar secrets sin imprimirlos
+      - name: Verificar configuracion sin imprimir secretos
         env:
+          START_BACKEND: ${{ inputs.backend }}
           USERNAME: ${{ secrets.USERNAME }}
           PASSWORD: ${{ secrets.PASSWORD }}
           SEEDLOAF_SERVER_ID: ${{ secrets.SEEDLOAF_SERVER_ID }}
+          SEEDLOAF_OFFICIAL_STATUS_URL: ${{ secrets.SEEDLOAF_OFFICIAL_STATUS_URL }}
+          SEEDLOAF_OFFICIAL_START_URL: ${{ secrets.SEEDLOAF_OFFICIAL_START_URL }}
+          SEEDLOAF_OFFICIAL_API_TOKEN: ${{ secrets.SEEDLOAF_OFFICIAL_API_TOKEN }}
         run: |
-          test -n "$USERNAME" || { echo "::error::Falta secret USERNAME"; exit 1; }
-          test -n "$PASSWORD" || { echo "::error::Falta secret PASSWORD"; exit 1; }
-          test -n "$SEEDLOAF_SERVER_ID" || { echo "::error::Falta secret SEEDLOAF_SERVER_ID"; exit 1; }
+          test -n "$SEEDLOAF_SERVER_ID" || { echo "::error::Falta SEEDLOAF_SERVER_ID"; exit 1; }
+          if [ "$START_BACKEND" = "browser" ]; then
+            test -n "$USERNAME" || { echo "::error::Falta USERNAME"; exit 1; }
+            test -n "$PASSWORD" || { echo "::error::Falta PASSWORD"; exit 1; }
+          elif [ "$START_BACKEND" = "official_api" ]; then
+            test -n "$SEEDLOAF_OFFICIAL_STATUS_URL" || { echo "::error::Falta URL oficial de estado"; exit 1; }
+            test -n "$SEEDLOAF_OFFICIAL_START_URL" || { echo "::error::Falta URL oficial de inicio"; exit 1; }
+            test -n "$SEEDLOAF_OFFICIAL_API_TOKEN" || { echo "::error::Falta token oficial de API"; exit 1; }
+          else
+            echo "::error::START_BACKEND desconocido"; exit 1
+          fi
 
-      - name: Pedir inicio de servidor
+      - name: Encender mediante el backend elegido
         env:
+          START_BACKEND: ${{ inputs.backend }}
           USERNAME: ${{ secrets.USERNAME }}
           PASSWORD: ${{ secrets.PASSWORD }}
           SEEDLOAF_SERVER_ID: ${{ secrets.SEEDLOAF_SERVER_ID }}
+          SEEDLOAF_OFFICIAL_STATUS_URL: ${{ secrets.SEEDLOAF_OFFICIAL_STATUS_URL }}
+          SEEDLOAF_OFFICIAL_START_URL: ${{ secrets.SEEDLOAF_OFFICIAL_START_URL }}
+          SEEDLOAF_OFFICIAL_API_TOKEN: ${{ secrets.SEEDLOAF_OFFICIAL_API_TOKEN }}
           CHECK_ONLY: ${{ inputs.check_only }}
-        run: python src/seedloaf_start.py
+        run: python src/entrypoint.py
