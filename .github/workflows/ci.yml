@@ -44,3 +44,13 @@ jobs:
               assert driver.title == 'Smoke test'
           print('Navegador listo')
           PY
+
+      - name: Probar SeleniumBase UC con navegador local y Xvfb
+        run: |
+          python - <<'PY'
+          from seleniumbase import SB
+          with SB(uc=True, xvfb=True, test=True) as sb:
+              sb.driver.default_get('data:text/html,<title>UC smoke</title><h1>OK</h1>')
+              assert sb.driver.title == 'UC smoke'
+          print('SeleniumBase UC listo en GitHub Actions')
+          PY
