@@ -118,7 +118,8 @@ def open_and_wait(sb, url):
         print("Se detecto verificacion web. Intentando resolverla una sola vez "
               "desde el navegador local.", flush=True)
         try:
-            sb.solve_captcha()
+            # API de UC Mode disponible en el driver, no en SB.
+            driver.uc_gui_handle_captcha()
         except Exception as exc:
             print("Verificacion no resuelta automaticamente: " +
                   type(exc).__name__, flush=True)
@@ -210,8 +211,14 @@ def main():
         raise RuntimeError("Faltan secrets USERNAME/PASSWORD de Seedloaf.")
 
     from seleniumbase import SB
-    with SB(uc=True, xvfb=True, test=True, incognito=True, locale="en") as sb:
-        return do_start(sb, server_id, email, password)
+    result = None
+    with SB(uc=True, xvfb=True, incognito=True, locale="en") as sb:
+        result = do_start(sb, server_id, email, password)
+    # SeleniumBase puede registrar una excepcion del test sin devolver
+    # exit code distinto de 0. Nunca reportar exito si falta confirmacion.
+    if result != 0:
+        raise RuntimeError("La automatizacion termino sin confirmar el resultado.")
+    return 0
 
 
 if __name__ == "__main__":
