@@ -16,6 +16,7 @@ on:
         default: browser
         options:
           - browser
+          - browser_cdp
           - official_api
 
 permissions:
@@ -53,7 +54,7 @@ jobs:
         run: python src/fastcheck.py
 
       - name: Instalar SeleniumBase UC (solo si hace falta)
-        if: ${{ steps.preflight.outputs.online != 'true' && (inputs.backend == 'browser' || inputs.backend == '') }}
+        if: ${{ steps.preflight.outputs.online != 'true' && (inputs.backend == 'browser' || inputs.backend == 'browser_cdp' || inputs.backend == '') }}
         run: python -m pip install -r requirements.txt
 
       - name: Verificar configuracion sin imprimir secretos
@@ -69,7 +70,7 @@ jobs:
           SEEDLOAF_OFFICIAL_API_TOKEN: ${{ secrets.SEEDLOAF_OFFICIAL_API_TOKEN }}
         run: |
           test -n "$SEEDLOAF_SERVER_ID" || { echo "::error::Falta SEEDLOAF_SERVER_ID"; exit 1; }
-          if [ "$START_BACKEND" = "browser" ]; then
+          if [ "$START_BACKEND" = "browser" ] || [ "$START_BACKEND" = "browser_cdp" ]; then
             test -n "$USERNAME" || { echo "::error::Falta USERNAME"; exit 1; }
             test -n "$PASSWORD" || { echo "::error::Falta PASSWORD"; exit 1; }
           elif [ "$START_BACKEND" = "official_api" ]; then

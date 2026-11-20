@@ -42,7 +42,7 @@ def postflight(address, *, probe=None, pause=None, attempts=5):
 
 def main():
     provider = (os.environ.get("START_BACKEND") or "browser").strip().lower()
-    if provider not in ("official_api", "browser"):
+    if provider not in ("official_api", "browser", "browser_cdp"):
         raise ValueError("START_BACKEND no permitido.")
     # This never sends commands to the Minecraft server.
     # A proxy can answer status while a world is still starting.
@@ -51,6 +51,9 @@ def main():
     if provider == "official_api":
         from official_start import main as official_main
         result = official_main()
+    elif provider == "browser_cdp":
+        from seedloaf_cdp import main as cdp_main
+        result = cdp_main()
     else:
         from seedloaf_start import main as browser_main
         result = browser_main()
