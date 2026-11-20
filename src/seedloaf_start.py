@@ -55,6 +55,31 @@ def is_target(url, server_id):
     return u.scheme == "https" and u.hostname == "seedloaf.com" and u.path.startswith(f"/dashboard/{server_id}/")
 
 
+def login_diagnostic(driver, stage):
+    """Solo categorias booleanas, sin texto HTML, URL completa ni credenciales."""
+    from selenium.webdriver.common.by import By
+    try:
+        u = urlparse(driver.current_url)
+        host = u.hostname or ""
+        domain = host if host in ("seedloaf.com", "accounts.seedloaf.com") else "other"
+        title = norm(driver.title)
+        body = norm(driver.find_element(By.TAG_NAME, "body").text)[:2000]
+        text = title + " " + body
+        flags = {
+            "challenge": is_challenge(title, body) or bool(driver.find_elements(By.CSS_SELECTOR, "iframe[src*='challenges.cloudflare.com']")),
+            "invalid_credentials": any(s in text for s in ("invalid password", "incorrect password", "invalid credentials", "incorrect credentials", "contrasena incorrecta", "credenciales invalidas")),
+            "verify_email": any(s in text for s in ("verify your email", "check your email", "verifica tu correo", "verification code")),
+            "two_factor": any(s in text for s in ("two-factor", "two factor", "authenticator")),
+            "username_field": bool(driver.find_elements(By.ID, "identifier-field")),
+            "password_field": bool(driver.find_elements(By.ID, "password-field")),
+            "dashboard": host == "seedloaf.com" and "/dashboard" in u.path,
+        }
+        print("DIAGNOSTICO etapa=" + stage + " dominio=" + domain + " " +
+              " ".join(f"{k}={int(bool(v))}" for k, v in flags.items()), flush=True)
+    except Exception as exc:
+        print("DIAGNOSTICO etapa=" + stage + " inspeccion_error=" + type(exc).__name__, flush=True)
+
+
 def main():
     server_id = (os.getenv("SEEDLOAF_SERVER_ID") or "").strip()
     console = console_url(server_id)
@@ -77,16 +102,23 @@ def main():
     try:
         print("Abriendo acceso de Seedloaf por correo.")
         driver.get(LOGIN_URL)
+        stage = "initial_identifier"
+        login_diagnostic(driver, stage)
         try:
             username = WebDriverWait(driver, 25).until(EC.visibility_of_element_located((By.ID, "identifier-field")))
             username.send_keys(email)
             username.send_keys(Keys.ENTER)
+            stage = "after_identifier"
+            login_diagnostic(driver, stage)
             field = WebDriverWait(driver, 25).until(EC.visibility_of_element_located((By.ID, "password-field")))
             field.send_keys(password)
             field.send_keys(Keys.ENTER)
+            stage = "after_password"
             WebDriverWait(driver, 35).until(lambda d: urlparse(d.current_url).hostname == "seedloaf.com")
+            login_diagnostic(driver, "authenticated")
         except TimeoutException as exc:
-            raise RuntimeError("Autenticacion no completada: formulario cambiado, login social o verificacion humana. No se elude el desafio.") from exc
+            login_diagnostic(driver, stage + "_timeout")
+            raise RuntimeError("No se completo el acceso en la etapa " + stage + ". Revisar DIAGNOSTICO; no se intenta eludir protecciones.") from exc
 
         print("Abriendo consola del servidor configurado.")
         driver.get(console)
