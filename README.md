@@ -166,3 +166,14 @@ El modo `official_api` permanece como adaptador **experimental sin API de Seedlo
 - El backend predeterminado ahora es `browser` incluso cuando un disparador externo omite ese parametro; antes esos disparos fallaban en la validacion de workflow.
 - Si el servidor esta apagado, **la comprobacion de Minecraft no lo enciende**. Solo Seedloaf puede activar ese servidor mediante un mecanismo autorizado. No se recomienda almacenar cookies ni sesiones de acceso a Seedloaf en GitHub Actions.
 - El comportamiento de Cloudflare es externo y variable. Ningun resultado de pruebas locales o simuladas demuestra un porcentaje de exito real al encender.
+
+## Version 2.2 — Diagnostico sin Cloudflare y DNS SRV
+
+- Con la direccion de Minecraft **sin puerto**, `minecraft_status_auto` consulta el registro DNS SRV `_minecraft._tcp` y usa el destino publicado; conserva el hostname original en el handshake de Minecraft Java. Si configuras un puerto explicito (por ejemplo `:50690`), respeta ese puerto sin pedir SRV.
+- **La consulta de estado solo sirve para evitar accesos innecesarios a la web cuando Minecraft ya responde.** No arranca un servidor apagado.
+- Nuevo workflow manual **Diagnostico Minecraft (sin Seedloaf web)**: usa `MINECRAFT_ADDRESS`, comprueba el destino configurado, registra si encuentra SRV y comprueba por separado el puerto `25565` para dominios Seedloaf con puerto personalizado. No inicia sesion, no pulsa Start, no publica la direccion.
+- Para ejecutarlo: GitHub -> Actions -> Diagnostico Minecraft (sin Seedloaf web) -> Run workflow. Las salidas no revelan la direccion guardada como secreto.
+- Un `no_response` no distingue entre servidor apagado, problemas de DNS o puerto inaccesible. El resultado del diagnostico no debe usarse como evidencia de un mundo encendido/apagado.
+- **Resultado de una prueba real en GitHub:** `configured=no_response`, `srv_record=absent_or_unavailable`, `default_port_probe=no_response`. No hay prueba de acceso a Seedloaf en esta ejecucion. Registros: https://github.com/JeremiFerreras/seedloaf-start/actions/runs/44793784779
+- Los proyectos de la comunidad que intentan disimular navegadores (por ejemplo SeleniumBase UC/CDP) no ofrecen ninguna garantia de que Cloudflare los admita. Cloudflare declara que los navegadores automatizados no estan soportados para resolver challenges de produccion: https://developers.cloudflare.com/cloudflare-challenges/reference/supported-browsers/
+- No se almacenan ni exportan cookies de inicio de sesion a caches o artefactos de GitHub. No se alteran huellas digitales para saltar medidas del proveedor.
