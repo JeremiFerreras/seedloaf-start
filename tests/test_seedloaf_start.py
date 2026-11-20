@@ -5,7 +5,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from seedloaf_start import classify_buttons, console_url, is_challenge, is_target, norm
 
-SERVER_ID = "10a18fff-0237-49f3-a279-964412516d46"
+SERVER_ID = "123e4567-e89b-42d3-a456-426614174000"
 
 
 class FakeButton:
