@@ -51,8 +51,13 @@ class Tests(unittest.TestCase):
         self.assertEqual(state, "can_start")
         self.assertIsNotNone(b)
 
-    def test_already_running(self):
+    def test_conflicting_start_and_stop(self):
         state, b = classify_buttons([FakeButton("Start"), FakeButton("Stop")])
+        self.assertEqual(state, "ambiguous")
+        self.assertIsNone(b)
+
+    def test_already_running(self):
+        state, b = classify_buttons([FakeButton("Stop")])
         self.assertEqual(state, "already_running")
         self.assertIsNone(b)
 
