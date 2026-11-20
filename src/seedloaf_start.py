@@ -38,21 +38,28 @@ def norm(text):
 
 
 def classify_buttons(buttons):
+    """Interpretacion conservadora: cualquier ambiguedad impide pulsar Start."""
     starts, stops = [], []
     for button in buttons:
-        if not button.is_displayed() or not button.is_enabled():
-            continue
-        labels = [norm(button.text), norm(button.get_attribute("aria-label")),
-                  norm(button.get_attribute("title"))]
-        if any(label in STOP for label in labels):
-            stops.append(button)
-        elif any(label in START for label in labels):
-            starts.append(button)
+        try:
+            if not button.is_displayed() or not button.is_enabled():
+                continue
+            labels = [norm(button.text), norm(button.get_attribute("aria-label")),
+                      norm(button.get_attribute("title"))]
+            if any(label in STOP for label in labels):
+                stops.append(button)
+            elif any(label in START for label in labels):
+                starts.append(button)
+        except Exception:
+            # Por ejemplo StaleElementReference mientras el panel se actualiza.
+            return "ambiguous", None
+    if (starts and stops) or len(starts) > 1 or len(stops) > 1:
+        return "ambiguous", None
     if stops:
         return "already_running", None
-    if len(starts) == 1:
+    if starts:
         return "can_start", starts[0]
-    return ("ambiguous" if starts else "not_found"), None
+    return "not_found", None
 
 
 def is_challenge(title, body):
@@ -62,9 +69,47 @@ def is_challenge(title, body):
 
 def is_target(url, server_id):
     u = urlparse(url)
-    return u.scheme == "https" and u.hostname == "seedloaf.com" and u.path.startswith(
-        f"/dashboard/{server_id}/"
-    )
+    return (u.scheme == "https" and u.hostname == "seedloaf.com"
+            and u.port in (None, 443)
+            and u.path.rstrip("/") == f"/dashboard/{server_id}/console")
+
+
+def authenticated_dashboard(url):
+    """Un redirect al inicio de seedloaf.com NO demuestra autenticacion."""
+    u = urlparse(url)
+    return (u.scheme == "https" and u.hostname == "seedloaf.com"
+            and u.port in (None, 443)
+            and (u.path.rstrip("/") == "/dashboard"
+                 or u.path.startswith("/dashboard/")))
+
+
+def snapshot_state(url, server_id, buttons):
+    """No interpretar controles si el navegador salio del servidor esperado."""
+    if not is_target(url, server_id):
+        return "wrong_page", None
+    return classify_buttons(buttons)
+
+
+def action_for_state(state, check_only=False):
+    if state == "already_running":
+        return "already_running"
+    if state == "can_start":
+        return "check_off" if check_only else "start"
+    raise RuntimeError("Estado no seguro: " + state + "; no se pulsara Start.")
+
+
+def confirmation_from_state(state):
+    if state == "already_running":
+        return True
+    if state in ("can_start", "not_found"):
+        return False
+    # No aceptar redirecciones, botones contradictorios ni paneles ajenos.
+    raise RuntimeError("Confirmacion interrumpida por estado no seguro: " + state)
+
+
+def retry_challenge_allowed(is_challenge_page, retries_used):
+    """Una recuperacion adicional y solo si hay una verificacion, nunca por error de clave."""
+    return bool(is_challenge_page and retries_used < 1)
 
 
 def diagnostic(driver, stage):
@@ -139,12 +184,26 @@ def do_start(sb, server_id, email, password):
     open_and_wait(sb, LOGIN_URL)
     diagnostic(driver, "initial_identifier")
     try:
-        username = WebDriverWait(driver, 30).until(
+        username = WebDriverWait(driver, 25).until(
             EC.visibility_of_element_located((By.ID, "identifier-field")))
     except TimeoutException as exc:
         diagnostic(driver, "identifier_timeout")
-        raise RuntimeError("La verificacion web o el formulario impide entrar. "
-                           "Consulta DIAGNOSTICO.") from exc
+        if not retry_challenge_allowed(is_current_challenge(driver), 0):
+            raise RuntimeError("No se encontro el formulario; sin desafio recuperable.") from exc
+        print("Desafio persistente: unica recuperacion adicional, sin repetir login.",
+              flush=True)
+        time.sleep(6)
+        try:
+            driver.uc_gui_handle_captcha()
+        except Exception as error:
+            print("Recuperacion de desafio no disponible: " +
+                  type(error).__name__, flush=True)
+        try:
+            username = WebDriverWait(driver, 25).until(
+                EC.visibility_of_element_located((By.ID, "identifier-field")))
+        except TimeoutException as final_exc:
+            diagnostic(driver, "identifier_second_timeout")
+            raise RuntimeError("La proteccion de acceso sigue activa; se cancela.") from final_exc
 
     username.send_keys(email)
     username.send_keys(Keys.ENTER)
@@ -159,8 +218,8 @@ def do_start(sb, server_id, email, password):
     field.send_keys(password)
     field.send_keys(Keys.ENTER)
     try:
-        WebDriverWait(driver, 35).until(
-            lambda d: urlparse(d.current_url).hostname == "seedloaf.com")
+        WebDriverWait(driver, 45).until(
+            lambda d: authenticated_dashboard(d.current_url))
     except TimeoutException as exc:
         diagnostic(driver, "after_password_timeout")
         raise RuntimeError("La autenticacion no se completo.") from exc
@@ -186,39 +245,46 @@ def do_start(sb, server_id, email, password):
     def panel_ready(d):
         if not is_target(d.current_url, server_id):
             return False
-        state, _ = classify_buttons(d.find_elements(By.CSS_SELECTOR, "button"))
-        return state != "not_found"
+        state, _ = snapshot_state(
+            d.current_url, server_id, d.find_elements(By.CSS_SELECTOR, "button"))
+        return state in ("already_running", "can_start", "ambiguous")
 
     try:
-        WebDriverWait(driver, 35).until(panel_ready)
+        WebDriverWait(driver, 55, poll_frequency=2).until(panel_ready)
     except TimeoutException as exc:
         diagnostic(driver, "panel_timeout")
         raise RuntimeError("No se encontro un control de encendido reconocible "
-                           "en el panel correcto.") from exc
+                           "en la consola exacta del servidor.") from exc
 
-    state, start = classify_buttons(driver.find_elements(By.CSS_SELECTOR, "button"))
-    if (os.getenv("CHECK_ONLY") or "").strip().lower() == "true":
+    state, start = snapshot_state(
+        driver.current_url, server_id, driver.find_elements(By.CSS_SELECTOR, "button"))
+    check_only = (os.getenv("CHECK_ONLY") or "").strip().lower() == "true"
+    if check_only:
         print("CONSULTA_SOLO_LECTURA estado=" + state, flush=True)
-        if state in ("already_running", "can_start"):
-            return 0
-        raise RuntimeError("El estado del servidor no pudo determinarse de forma segura.")
-    if state == "already_running":
-        print("El servidor ya estaba encendido. No se ejecuta otra accion.",
-              flush=True)
+    action = action_for_state(state, check_only=check_only)
+    if action == "already_running":
+        print("Servidor ya encendido: no se realiza ninguna accion.", flush=True)
         return 0
-    if state != "can_start":
-        raise RuntimeError("Botones ambiguos. No se hace clic.")
+    if action == "check_off":
+        print("Servidor apagado: comprobacion de solo lectura completada.", flush=True)
+        return 0
 
+    # La accion Start NO debe repetirse aunque no se confirme inmediatamente.
     start.click()
-    print("Start pulsado. Comprobando estado del panel hasta 120 segundos.", flush=True)
+    print("START_SOLICITADO: un clic. Esperando confirmacion de panel 120 segundos.",
+          flush=True)
+    def confirmed(d):
+        current, _ = snapshot_state(
+            d.current_url, server_id, d.find_elements(By.CSS_SELECTOR, "button"))
+        return confirmation_from_state(current)
     try:
-        WebDriverWait(driver, 120).until(
-            lambda d: classify_buttons(d.find_elements(
-                By.CSS_SELECTOR, "button"))[0] == "already_running")
+        WebDriverWait(driver, 120, poll_frequency=3).until(confirmed)
     except TimeoutException as exc:
         diagnostic(driver, "start_confirmation_timeout")
-        raise RuntimeError("Se pulso Start pero el panel no confirmo el estado.") from exc
-    print("El panel muestra el control de detener: arranque solicitado.", flush=True)
+        raise RuntimeError("Start pulsado pero sin confirmacion del panel. "
+                           "NO repetir Start automaticamente.") from exc
+    print("START_PANEL_CONFIRMADO: aparecio Stop en la consola especifica. "
+          "No se ha comprobado conectividad Minecraft.", flush=True)
     return 0
 
 
