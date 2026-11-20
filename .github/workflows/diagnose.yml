@@ -1,10 +1,6 @@
 name: Diagnostico Minecraft (sin Seedloaf web)
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/diagnose.yml"
   workflow_dispatch:
 
 permissions:
