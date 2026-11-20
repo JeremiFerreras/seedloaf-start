@@ -74,6 +74,7 @@ def is_target(url, server_id):
     except (ValueError, TypeError):
         return False
     return (u.scheme == "https" and u.hostname == "seedloaf.com"
+            and u.username is None and u.password is None
             and port in (None, 443)
             and u.path.rstrip("/") == f"/dashboard/{server_id}/console")
 
@@ -86,6 +87,7 @@ def authenticated_dashboard(url):
     except (ValueError, TypeError):
         return False
     return (u.scheme == "https" and u.hostname == "seedloaf.com"
+            and u.username is None and u.password is None
             and port in (None, 443)
             and (u.path.rstrip("/") == "/dashboard"
                  or u.path.startswith("/dashboard/")))
