@@ -12,7 +12,7 @@ class TestWorkflowSafety(unittest.TestCase):
     def test_browser_install_skipped_when_already_online(self):
         self.assertIn(
             "steps.preflight.outputs.online != 'true' && "
-            "(inputs.backend == 'browser' || inputs.backend == '')", WF)
+            "(inputs.backend == 'browser' || inputs.backend == 'browser_cdp' || inputs.backend == '')", WF)
 
     def test_start_step_skipped_when_online(self):
         self.assertIn(
