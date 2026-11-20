@@ -90,9 +90,11 @@ def packet(payload):
     return varint(len(payload)) + payload
 
 
-def minecraft_status(address, timeout=3, connect=socket.create_connection):
-    """Returns a dict on valid Minecraft status, else None. Never raises network errors."""
+def minecraft_status(address, timeout=3, connect=socket.create_connection,
+                     connect_override=None):
+    """Returns protocol confirmation, not full world readiness."""
     host, port = parse_mc_address(address)
+    destination = connect_override or (host, port)
     # One isolated status query; no login / commands / packets that start a world.
     h = host.encode("ascii")
     handshake = (
@@ -100,7 +102,7 @@ def minecraft_status(address, timeout=3, connect=socket.create_connection):
         port.to_bytes(2, "big") + varint(1)
     )
     try:
-        with connect((host, port), timeout=timeout) as sock:
+        with connect(destination, timeout=timeout) as sock:
             sock.settimeout(timeout)
             sock.sendall(packet(handshake) + packet(varint(0)))
             frame_size = read_varint(sock)
@@ -136,3 +138,60 @@ def minecraft_status(address, timeout=3, connect=socket.create_connection):
         return {"responding": True}
     except (ValueError, UnicodeError, ProbeError, TypeError):
         return None
+
+
+
+def lookup_mc_srv(host, resolver=None):
+    """Resolve the standard Minecraft Java SRV record, without logging addresses.
+
+    DNS data is not authentication. Invalid/missing records fall back to :25565.
+    A custom (explicit) port always wins over the SRV record.
+    """
+    if resolver is None:
+        try:
+            import dns.resolver
+        except ImportError:
+            return None
+        def resolver(qname):
+            return dns.resolver.resolve(qname, "SRV", lifetime=2.5)
+
+    try:
+        answers = resolver("_minecraft._tcp." + host)
+        valid = []
+        for a in answers:
+            target = str(a.target).rstrip(".").lower()
+            port = int(a.port)
+            priority = int(a.priority)
+            weight = int(a.weight)
+            if not (1 <= port <= 65535 and 0 <= priority <= 65535
+                    and 0 <= weight <= 65535):
+                continue
+            if (len(target) > 253 or not re.fullmatch(
+                    r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9-]+)+",
+                    target)):
+                continue
+            if target.endswith((".local", ".localhost", ".internal", ".test")):
+                continue
+            valid.append((priority, -weight, target, port))
+        if not valid:
+            return None
+        best = min(valid)
+        return best[2], best[3]
+    except Exception:
+        return None
+
+
+def minecraft_status_auto(address, timeout=3, *, srv_lookup=lookup_mc_srv,
+                          probe=minecraft_status):
+    """Java-compatible SRV discovery for bare Seedloaf domains.
+
+    Explicit ports such as server.seedloaf.gg:50690 never trigger SRV.
+    The original hostname is preserved in the Minecraft handshake.
+    """
+    host, port = parse_mc_address(address)
+    if ":" in address or re.fullmatch(r"\d+\.\d+\.\d+\.\d+", host):
+        return probe(address, timeout=timeout)
+    destination = srv_lookup(host)
+    if destination is None:
+        return probe(address, timeout=timeout)
+    return probe(address, timeout=timeout, connect_override=destination)
