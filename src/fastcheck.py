@@ -7,10 +7,10 @@ import os
 import sys
 import time
 
-from mc_probe import ProbeError, minecraft_status, parse_mc_address
+from mc_probe import ProbeError, minecraft_status_auto, parse_mc_address
 
 
-def evaluate(address, *, probe=minecraft_status, pause=time.sleep):
+def evaluate(address, *, probe=minecraft_status_auto, pause=time.sleep):
     if not address:
         return "not_configured"
     parse_mc_address(address)
