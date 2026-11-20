@@ -177,3 +177,20 @@ El modo `official_api` permanece como adaptador **experimental sin API de Seedlo
 - **Resultado de una prueba real en GitHub:** `configured=no_response`, `srv_record=absent_or_unavailable`, `default_port_probe=no_response`. No hay prueba de acceso a Seedloaf en esta ejecucion. Registros: https://github.com/JeremiFerreras/seedloaf-start/actions/runs/44793784779
 - Los proyectos de la comunidad que intentan disimular navegadores (por ejemplo SeleniumBase UC/CDP) no ofrecen ninguna garantia de que Cloudflare los admita. Cloudflare declara que los navegadores automatizados no estan soportados para resolver challenges de produccion: https://developers.cloudflare.com/cloudflare-challenges/reference/supported-browsers/
 - No se almacenan ni exportan cookies de inicio de sesion a caches o artefactos de GitHub. No se alteran huellas digitales para saltar medidas del proveedor.
+
+## Version 2.3: navegador experimental CDP (20 noviembre 2026)
+
+- Se agrego **browser_cdp** como opcion manual en Actions -> Encender Seedloaf -> Run workflow. **browser** continua como predeterminado.
+- Implementado sobre SeleniumBase CDP usando una unica sesion de navegador, sin mezclar comandos WebDriver con acciones CDP y sin volver a cargar la pagina de login innecesariamente.
+- Solo permite clic en un unico control Start de la consola exacta del servidor, compara de nuevo la identidad del control antes de pulsarlo y **nunca** repite Start ante errores o timeouts.
+- Se agregaron pruebas unitarias contra paginas falsas y pruebas reales de Chrome sobre HTML local de Start/Stop y login de dos pasos. Los tests no hacen peticiones a Seedloaf ni usan secretos.
+- **Prueba CDP 1**: la verificacion de acceso siguio bloqueada antes de introducir credenciales: https://github.com/JeremiFerreras/seedloaf-start/actions/runs/44796161330
+- **Prueba CDP 2**: alcanzo ambos campos del login y envio la contrasena, pero Seedloaf no completo el redireccionamiento a dashboard: https://github.com/JeremiFerreras/seedloaf-start/actions/runs/44796877369
+- **Prueba CDP 3**: la verificacion de Cloudflare volvio a impedir que apareciese el campo de correo: https://github.com/JeremiFerreras/seedloaf-start/actions/runs/44797744561
+- **Resultado global**: 0/3 ejecuciones CDP con arranque confirmado. Estas tres ejecuciones **no** permiten estimar estadisticamente una tasa de exito fiable.
+- Si una cuenta requiere confirmacion de email o MFA, no se intenta eludir ese control. Los diagnosticos de autenticacion registran solamente indicadores de estado, nunca correo, contrasena, cookies, HTML o tokens.
+- No se han guardado sesiones ni exportado cookies a artefactos o cachés de Actions. El workflow sigue en modo manual para evitar que un push arranque el servidor.
+- No se recomienda usar FlareSolverr como solador de retos: su propio README advierte que los solvers de CAPTCHA no funcionan actualmente, y traslada cookies y HTML entre procesos. https://github.com/FlareSolverr/FlareSolverr
+- La propia documentacion de Cloudflare establece que los navegadores automatizados no estan soportados para resolver retos de produccion: https://developers.cloudflare.com/cloudflare-challenges/reference/supported-browsers/
+- La documentacion oficial de Seedloaf ofrece `Starter` y `Public Start` como mecanismos autorizados: https://seedloaf.com/documentation/es/add-users
+- **Pendiente**: una interfaz oficial de encendido independiente del navegador, o comprobar una ejecucion desde apagado que alcance Start y verifique el protocolo Minecraft. No considerar browser_cdp estable ni garantizar que no aparezcan retos.
