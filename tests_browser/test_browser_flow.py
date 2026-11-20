@@ -79,9 +79,17 @@ class TestSyntheticChromeFlow(unittest.TestCase):
             sb.activate_cdp_mode("data:text/html," + quote(page))
             cdp = sb.cdp
             cdp.wait_for_element_visible("#start", timeout=12)
-            self.assertEqual(cdp.get_text("#start"), "Start")
-            cdp.click("#start")
-            self.assertEqual(cdp.get_text("#start"), "Stop")
+            from seedloaf_cdp import state_from_browser, safe_mark_start
+            class LocalCDP:
+                def get_current_url(self): return CONSOLE
+                def evaluate(self, script): return cdp.evaluate(script)
+            adapter = LocalCDP()
+            state, selected = state_from_browser(adapter, SERVER)
+            self.assertEqual(state, "can_start")
+            self.assertTrue(safe_mark_start(adapter, selected))
+            cdp.click('button[data-safe-seedloaf-start="single-click"]')
+            self.assertEqual(state_from_browser(adapter, SERVER)[0],
+                             "already_running")
 
 
 
