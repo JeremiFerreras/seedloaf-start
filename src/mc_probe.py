@@ -5,6 +5,7 @@ A successful STATUS reply is evidence that Minecraft speaks its protocol,
 but a proxy might answer without the underlying world fully loaded.
 No start/stop command is transmitted by this module.
 """
+import ipaddress
 import json
 import re
 import socket
@@ -28,8 +29,21 @@ def parse_mc_address(raw):
     else:
         host, port = raw, 25565
     host = host.rstrip(".").lower()
-    if not re.fullmatch(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9-]+)*\.seedloaf\.gg", host):
-        raise ProbeError("Solo se admiten dominios de servidor *.seedloaf.gg.")
+    seedloaf_host = bool(re.fullmatch(
+        r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9-]+)*\.seedloaf\.gg",
+        host
+    ))
+    if not seedloaf_host:
+        # Numerical Java IPs are supported only if globally routable:
+        # never probe loopback, LAN, link-local, broadcast or reserved ranges.
+        try:
+            ip = ipaddress.IPv4Address(host)
+            if not ip.is_global:
+                raise ProbeError("La IP no es publica.")
+        except ipaddress.AddressValueError as exc:
+            raise ProbeError(
+                "Solo *.seedloaf.gg o una direccion IPv4 publica."
+            ) from exc
     if port < 1 or port > 65535:
         raise ProbeError("Puerto Minecraft fuera de rango.")
     return host, port
