@@ -156,3 +156,13 @@ El modo `official_api` permanece como adaptador **experimental sin API de Seedlo
 - Pruebas de que no se duplica Start tras un timeout y de que el workflow omite la instalacion del navegador cuando el servidor ya responde.
 - Tests unitarios y pruebas de Chrome con HTML simulado en GitHub Actions. **Las pruebas de estres no representan miles de encendidos reales de Seedloaf.**
 
+
+
+### Resultado del ensayo real de esta version
+
+- [Ejecucion de encendido desde GitHub Actions](https://github.com/JeremiFerreras/seedloaf-start/actions/runs/44789704279): la direccion de Minecraft paso la validacion, pero el preflight indico `not_confirmed`, por lo que el sistema paso al navegador.
+- Se iniciaron Chrome y SeleniumBase, pero la pagina de acceso siguio presentando un reto de Cloudflare (`challenge=1`) y no aparecio el formulario; la ejecucion **fallo sin llegar a Start**.
+- Esto **no permite** concluir si el servidor Minecraft estaba apagado. Comprueba que `MINECRAFT_ADDRESS` sea la direccion **Java exacta**, incluyendo `:puerto` cuando Seedloaf proporciona uno que no es `25565`.
+- El backend predeterminado ahora es `browser` incluso cuando un disparador externo omite ese parametro; antes esos disparos fallaban en la validacion de workflow.
+- Si el servidor esta apagado, **la comprobacion de Minecraft no lo enciende**. Solo Seedloaf puede activar ese servidor mediante un mecanismo autorizado. No se recomienda almacenar cookies ni sesiones de acceso a Seedloaf en GitHub Actions.
+- El comportamiento de Cloudflare es externo y variable. Ningun resultado de pruebas locales o simuladas demuestra un porcentaje de exito real al encender.
