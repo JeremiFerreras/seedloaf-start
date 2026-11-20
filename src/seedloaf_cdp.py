@@ -117,7 +117,12 @@ def run_browser(cdp, server_id, email, password, *, check_only=False):
     """Use CDP exclusively; never reconnect Chromedriver during the flow."""
     if not authenticated_dashboard("https://seedloaf.com/dashboard"):
         raise RuntimeError("Validacion de dominio inutilizable.")
-    cdp.goto(LOGIN_URL)
+    # main() already opened LOGIN_URL with activate_cdp_mode().
+    # Never reload the same challenge page: that resets its browser state.
+    from urllib.parse import urlparse
+    current_host = urlparse(cdp.get_current_url()).hostname
+    if current_host != "accounts.seedloaf.com":
+        raise RuntimeError("La navegacion de acceso no llego al dominio previsto.")
     limited_challenge(cdp)
     if not wait_until(lambda: cdp.is_element_visible(USERNAME), 35):
         print("CDP_DIAGNOSTICO etapa=identifier_timeout challenge_possible=1",
