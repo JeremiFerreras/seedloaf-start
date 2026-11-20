@@ -38,7 +38,7 @@ def parse_mc_address(raw):
         # never probe loopback, LAN, link-local, broadcast or reserved ranges.
         try:
             ip = ipaddress.IPv4Address(host)
-            if not ip.is_global:
+            if not ip.is_global or ip.is_multicast or ip.is_reserved:
                 raise ProbeError("La IP no es publica.")
         except ipaddress.AddressValueError as exc:
             raise ProbeError(
