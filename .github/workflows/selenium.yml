@@ -17,6 +17,7 @@ on:
         options:
           - browser
           - browser_cdp
+          - public_start
           - official_api
 
 permissions:
@@ -51,10 +52,11 @@ jobs:
         id: preflight
         env:
           MINECRAFT_ADDRESS: ${{ secrets.MINECRAFT_ADDRESS }}
+          DOMAIN: ${{ secrets.DOMAIN }}
         run: python src/fastcheck.py
 
       - name: Instalar SeleniumBase UC (solo si hace falta)
-        if: ${{ steps.preflight.outputs.online != 'true' && (inputs.backend == 'browser' || inputs.backend == 'browser_cdp' || inputs.backend == '') }}
+        if: ${{ steps.preflight.outputs.online != 'true' && (inputs.backend == 'browser' || inputs.backend == 'browser_cdp' || inputs.backend == 'public_start' || inputs.backend == '') }}
         run: python -m pip install -r requirements.txt
 
       - name: Verificar configuracion sin imprimir secretos
@@ -65,6 +67,7 @@ jobs:
           PASSWORD: ${{ secrets.PASSWORD }}
           SEEDLOAF_SERVER_ID: ${{ secrets.SEEDLOAF_SERVER_ID }}
           MINECRAFT_ADDRESS: ${{ secrets.MINECRAFT_ADDRESS }}
+          DOMAIN: ${{ secrets.DOMAIN }}
           SEEDLOAF_OFFICIAL_STATUS_URL: ${{ secrets.SEEDLOAF_OFFICIAL_STATUS_URL }}
           SEEDLOAF_OFFICIAL_START_URL: ${{ secrets.SEEDLOAF_OFFICIAL_START_URL }}
           SEEDLOAF_OFFICIAL_API_TOKEN: ${{ secrets.SEEDLOAF_OFFICIAL_API_TOKEN }}
@@ -73,6 +76,8 @@ jobs:
           if [ "$START_BACKEND" = "browser" ] || [ "$START_BACKEND" = "browser_cdp" ]; then
             test -n "$USERNAME" || { echo "::error::Falta USERNAME"; exit 1; }
             test -n "$PASSWORD" || { echo "::error::Falta PASSWORD"; exit 1; }
+          elif [ "$START_BACKEND" = "public_start" ]; then
+            test -n "$DOMAIN" || { echo "::error::Falta secret DOMAIN"; exit 1; }
           elif [ "$START_BACKEND" = "official_api" ]; then
             test -n "$SEEDLOAF_OFFICIAL_STATUS_URL" || { echo "::error::Falta URL oficial de estado"; exit 1; }
             test -n "$SEEDLOAF_OFFICIAL_START_URL" || { echo "::error::Falta URL oficial de inicio"; exit 1; }
@@ -89,6 +94,7 @@ jobs:
           PASSWORD: ${{ secrets.PASSWORD }}
           SEEDLOAF_SERVER_ID: ${{ secrets.SEEDLOAF_SERVER_ID }}
           MINECRAFT_ADDRESS: ${{ secrets.MINECRAFT_ADDRESS }}
+          DOMAIN: ${{ secrets.DOMAIN }}
           SEEDLOAF_OFFICIAL_STATUS_URL: ${{ secrets.SEEDLOAF_OFFICIAL_STATUS_URL }}
           SEEDLOAF_OFFICIAL_START_URL: ${{ secrets.SEEDLOAF_OFFICIAL_START_URL }}
           SEEDLOAF_OFFICIAL_API_TOKEN: ${{ secrets.SEEDLOAF_OFFICIAL_API_TOKEN }}
