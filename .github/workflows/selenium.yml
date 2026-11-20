@@ -2,10 +2,6 @@ name: Encender Seedloaf
 
 # Este workflow solo se ejecuta bajo peticion explicita.
 on:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/selenium.yml"
   workflow_dispatch:
     inputs:
       check_only:
@@ -57,5 +53,5 @@ jobs:
           USERNAME: ${{ secrets.USERNAME }}
           PASSWORD: ${{ secrets.PASSWORD }}
           SEEDLOAF_SERVER_ID: ${{ secrets.SEEDLOAF_SERVER_ID }}
-          CHECK_ONLY: "true"
+          CHECK_ONLY: ${{ inputs.check_only }}
         run: python src/seedloaf_start.py
