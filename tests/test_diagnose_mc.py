@@ -20,7 +20,7 @@ class TestConnectionDiagnostics(unittest.TestCase):
         self.assertEqual(report["configured"], "responding")
         self.assertEqual(report["srv_record"], "absent_or_unavailable")
         self.assertEqual(report["srv_probe"], "not_checked")
-        self.assertEqual(len(calls), 1)
+        self.assertEqual(len(calls), 2)
 
     def test_no_reply_reports_false_without_start(self):
         def probe(*a, **kw):
@@ -39,7 +39,7 @@ class TestConnectionDiagnostics(unittest.TestCase):
         self.assertEqual(report["configured"], "no_response")
         self.assertEqual(report["srv_record"], "found")
         self.assertEqual(report["srv_probe"], "responding")
-        self.assertEqual(calls, [(ADDRESS, None),
+        self.assertEqual(calls, [(ADDRESS, None), (HOST, None),
                                  (HOST, ("node.seedloaf.gg", 55001))])
 
     def test_srv_same_origin_skips_duplicate_probe(self):
@@ -51,6 +51,26 @@ class TestConnectionDiagnostics(unittest.TestCase):
             srv_lookup=lambda _: (HOST, 50690), probe=probe)
         self.assertEqual(report["srv_probe"], "not_checked")
         self.assertEqual(len(calls), 1)
+
+
+    def test_bare_domain_port_25565_can_reply_even_if_custom_does_not(self):
+        calls = []
+        def probe(addr, **kwargs):
+            calls.append(addr)
+            return {"responding": True} if addr == HOST else None
+        report = diagnose(ADDRESS, srv_lookup=lambda _: None, probe=probe)
+        self.assertEqual(report["configured"], "no_response")
+        self.assertEqual(report["default_port_probe"], "responding")
+        self.assertEqual(calls, [ADDRESS, HOST])
+
+    def test_if_config_uses_default_port_no_duplicate_default_probe(self):
+        calls = []
+        def probe(addr, **kwargs):
+            calls.append(addr)
+            return None
+        report = diagnose(HOST, srv_lookup=lambda _: None, probe=probe)
+        self.assertEqual(report["default_port_probe"], "not_checked")
+        self.assertEqual(calls, [HOST])
 
     def test_ipv4_never_looks_up_srv(self):
         def error(host):
