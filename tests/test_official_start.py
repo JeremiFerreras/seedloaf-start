@@ -432,14 +432,16 @@ class TestOptionalMinecraftPreflight(unittest.TestCase):
         env = {"START_BACKEND": "browser", "MINECRAFT_ADDRESS": "foo.seedloaf.gg"}
         with patch.dict(os.environ, env):
             with patch("mc_probe.minecraft_status", return_value=None):
-                with patch("seedloaf_start.main", return_value=0) as browser:
+                with patch("entrypoint.postflight", return_value="not_confirmed"), \
+                     patch("seedloaf_start.main", return_value=0) as browser:
                     self.assertEqual(entrypoint_main(), 0)
                     browser.assert_called_once_with()
 
     def test_no_host_does_not_probe(self):
         with patch.dict(os.environ, {"START_BACKEND": "browser", "MINECRAFT_ADDRESS": ""}):
             with patch("mc_probe.minecraft_status") as mc:
-                with patch("seedloaf_start.main", return_value=0) as browser:
+                with patch("entrypoint.postflight", return_value="not_confirmed"), \
+                     patch("seedloaf_start.main", return_value=0) as browser:
                     self.assertEqual(entrypoint_main(), 0)
                     mc.assert_not_called()
                     browser.assert_called_once_with()
@@ -447,7 +449,8 @@ class TestOptionalMinecraftPreflight(unittest.TestCase):
     def test_empty_fake_status_does_not_skip_backend(self):
         with patch.dict(os.environ, {"START_BACKEND": "browser", "MINECRAFT_ADDRESS": "foo.seedloaf.gg"}):
             with patch("mc_probe.minecraft_status", return_value={"responding": False}):
-                with patch("seedloaf_start.main", return_value=0) as browser:
+                with patch("entrypoint.postflight", return_value="not_confirmed"), \
+                     patch("seedloaf_start.main", return_value=0) as browser:
                     self.assertEqual(entrypoint_main(), 0)
                     browser.assert_called_once_with()
 
