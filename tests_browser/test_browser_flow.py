@@ -67,5 +67,23 @@ class TestSyntheticChromeFlow(unittest.TestCase):
                 ("wrong_page", None))
 
 
+    def test_cdp_mode_can_inspect_and_click_local_page(self):
+        """No Seedloaf requests: prove UC -> CDP works on GitHub's Xvfb."""
+        from seleniumbase import SB
+        from urllib.parse import quote
+        page = ("<html><head><title>Safe CDP smoke</title></head><body>"
+                "<button id='start' onclick=\\"this.textContent='Stop'\\">Start</button>"
+                "</body></html>")
+        # Use same public version as production with a local data URL.
+        with SB(uc=True, xvfb=True) as sb:
+            sb.activate_cdp_mode("data:text/html," + quote(page))
+            cdp = sb.cdp
+            cdp.wait_for_element_visible("#start", timeout=12)
+            self.assertEqual(cdp.get_text("#start"), "Start")
+            cdp.click("#start")
+            self.assertEqual(cdp.get_text("#start"), "Stop")
+
+
+
 if __name__ == "__main__":
     unittest.main()
